@@ -9,36 +9,29 @@ import csv
 EMAIL_DOMAINS = ['freemail', 'company', 'education']
 SEGMENTS = ['micro', 'smb', 'mid-market', 'enterprise']
 
-def handle_multiselect(key: str, options: List[str], default: str = "All") -> List[str]:
-    """Handle multiselect logic with exclusive 'All' option."""
-    # Get the previous selection from session state
-    prev_selection = st.session_state.get(key, [default])
+def handle_multiselect_change(key: str):
+    """Handle the change in multiselect values."""
+    current_value = st.session_state[f"{key}_select"]
     
-    # Create the multiselect
-    current_selection = st.multiselect(
-        f"Select {key}:",
-        ["All"] + options,
-        default=prev_selection,
-        help=f"Choose specific {key.lower()} or 'All'"
-    )
-    
-    # Handle the selection logic
-    if "All" in current_selection and "All" not in prev_selection:
-        # User just selected "All" - clear other selections
-        current_selection = ["All"]
-    elif "All" not in current_selection and "All" in prev_selection:
-        # User deselected "All" - keep only the last selection
-        if len(current_selection) == 0:
-            current_selection = ["All"]
-    elif "All" in current_selection and len(current_selection) > 1:
-        # User selected something else while "All" was selected
-        current_selection = [x for x in current_selection if x != "All"]
-    
-    # Store the new selection in session state
-    st.session_state[key] = current_selection
-    
-    # Return the actual values to use (excluding "All")
-    return options if "All" in current_selection else current_selection
+    # If "All" is selected now
+    if "All" in current_value:
+        # If there are other selections with "All", keep only "All"
+        if len(current_value) > 1:
+            st.session_state[f"{key}_select"] = ["All"]
+    # If "All" is not selected and nothing else is selected, default to "All"
+    elif len(current_value) == 0:
+        st.session_state[f"{key}_select"] = ["All"]
+
+def initialize_session_state():
+    """Initialize session state variables if they don't exist."""
+    if 'domains_select' not in st.session_state:
+        st.session_state.domains_select = ["All"]
+    if 'segments_select' not in st.session_state:
+        st.session_state.segments_select = ["All"]
+
+def get_actual_values(selected: List[str], all_options: List[str]) -> List[str]:
+    """Convert selection to actual values, handling 'All' case."""
+    return all_options if "All" in selected else selected
 
 def generate_combinations(countries: List[str], selected_domains: List[str], selected_segments: List[str]) -> List[str]:
     """Generate combinations based on selected domains, segments, and countries."""
@@ -60,14 +53,33 @@ def main():
     
     st.title("🔄 Segment Combinations Generator")
     
+    # Initialize session state
+    initialize_session_state()
+    
     # Create columns for dropdowns
     col1, col2 = st.columns(2)
     
     with col1:
-        selected_domains = handle_multiselect("Email Domains", EMAIL_DOMAINS)
+        st.multiselect(
+            "Select Email Domains:",
+            ["All"] + EMAIL_DOMAINS,
+            key="domains_select",
+            on_change=handle_multiselect_change,
+            args=("domains",),
+            help="Choose specific domains or 'All'"
+        )
+        selected_domains = get_actual_values(st.session_state.domains_select, EMAIL_DOMAINS)
     
     with col2:
-        selected_segments = handle_multiselect("Segments", SEGMENTS)
+        st.multiselect(
+            "Select Segments:",
+            ["All"] + SEGMENTS,
+            key="segments_select",
+            on_change=handle_multiselect_change,
+            args=("segments",),
+            help="Choose specific segments or 'All'"
+        )
+        selected_segments = get_actual_values(st.session_state.segments_select, SEGMENTS)
     
     # Input text area for countries
     countries_input = st.text_area(
