@@ -10,21 +10,18 @@ def generate_combinations(countries: List[str]) -> List[str]:
     EMAIL_DOMAINS = ['freemail', 'company', 'education']
     SEGMENTS = ['micro', 'smb', 'mid-market', 'enterprise']
     
-    combinations = []
+    combined_keys = []
     for country in countries:
         for domain in EMAIL_DOMAINS:
             for segment in SEGMENTS:
-                combination = f"{domain}-{segment}-{country.lower()}"
-                combinations.append([domain, segment, country.lower(), combination])
+                combined_key = f"{domain}-{segment}-{country.lower()}"
+                combined_keys.append(combined_key)
     
-    return combinations
+    return combined_keys
 
-def get_csv_download_link(df):
-    """Generate a link to download the dataframe as CSV."""
-    csv = df.to_csv(index=False)
-    b64 = base64.b64encode(csv.encode()).decode()
-    href = f'data:file/csv;base64,{b64}'
-    return href
+def format_keys_with_commas(keys: List[str]) -> str:
+    """Format the combined keys with commas."""
+    return ',\n'.join(keys)
 
 def main():
     st.set_page_config(page_title="Segment Combinations Generator", page_icon="🔄")
@@ -53,36 +50,27 @@ def main():
             ]
             
             if countries:
-                combinations = generate_combinations(countries)
-                df = pd.DataFrame(
-                    combinations,
-                    columns=['Email_Domain', 'Segment', 'Country', 'Combined_Key']
-                )
+                # Generate combinations
+                combined_keys = generate_combinations(countries)
                 
-                # Display preview
-                st.subheader("📊 Preview")
-                st.dataframe(df.head())
+                # Format keys with commas
+                formatted_keys = format_keys_with_commas(combined_keys)
+                
+                # Display formatted keys
+                st.subheader("Generated Combinations:")
+                st.code(formatted_keys)
                 
                 # Statistics
                 st.subheader("📈 Statistics")
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Total Combinations", len(combinations))
-                with col2:
-                    st.metric("Countries Processed", len(countries))
+                st.metric("Total Combinations", len(combined_keys))
                 
                 # Download button
-                csv = df.to_csv(index=False)
                 st.download_button(
-                    label="⬇️ Download CSV",
-                    data=csv,
-                    file_name="segment_combinations.csv",
-                    mime="text/csv"
+                    label="⬇️ Download Text File",
+                    data=formatted_keys,
+                    file_name="segment_combinations.txt",
+                    mime="text/plain"
                 )
-                
-                # Display example usage
-                st.subheader("🔍 Sample Combinations")
-                st.code('\n'.join([combo[3] for combo in combinations[:5]]))
             else:
                 st.error("Please enter at least one country")
         else:
@@ -96,7 +84,7 @@ def main():
         - Email Domains: freemail, company, education
         - Segments: micro, smb, mid-market, enterprise
     - All combinations will be in lowercase
-    - The CSV file contains both individual components and combined keys
+    - Each key will be separated by commas
     """)
 
 if __name__ == "__main__":
