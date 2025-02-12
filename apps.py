@@ -35,60 +35,40 @@ COUNTRIES = [
 def handle_multiselect_change(key: str):
     """Handle the change in multiselect values."""
     current_value = st.session_state[f"{key}_select"]
+    previous_value = st.session_state.get(f"{key}_previous", ["All"])
     
-    # If "All" is present along with other selections
-    if "All" in current_value and len(current_value) > 1:
-        # Keep only the most recently added item
-        st.session_state[f"{key}_select"] = [item for item in current_value if item != "All"][-1:]
-
-def get_actual_values(selected: List[str], all_options: List[str]) -> List[str]:
-    """Convert selection to actual values, handling 'All' case."""
-    if not selected:  # If nothing is selected, return all options
-        return all_options
-    return all_options if "All" in selected else selected
-
-def validate_and_correct_countries(input_countries: List[str]) -> Tuple[List[str], dict]:
-    """
-    Validate country names and suggest corrections for misspelled ones.
-    Returns tuple of (valid_countries, corrections_dict).
-    """
-    valid_countries = []
-    corrections = {}
+    # If "All" was just selected
+    if "All" in current_value and "All" not in previous_value:
+        # Keep only "All", removing other selections
+        st.session_state[f"{key}_select"] = ["All"]
+    # If "All" was present and other options were selected
+    elif "All" in current_value and len(current_value) > 1:
+        # Remove "All" and keep the other selections
+        st.session_state[f"{key}_select"] = [x for x in current_value if x != "All"]
     
-    for country in input_countries:
-        country = country.strip().title()
-        if country in COUNTRIES:
-            valid_countries.append(country)
-        else:
-            # Find closest matches
-            matches = get_close_matches(country, COUNTRIES, n=1, cutoff=0.6)
-            if matches:
-                corrections[country] = matches[0]
-                valid_countries.append(matches[0])
-            else:
-                corrections[country] = None
-    
-    return valid_countries, corrections
+    # Update previous value
+    st.session_state[f"{key}_previous"] = st.session_state[f"{key}_select"]
 
-def generate_combinations(countries: List[str], selected_domains: List[str], selected_segments: List[str]) -> List[str]:
-    """Generate combinations based on selected domains, segments, and countries."""
-    combined_keys = []
-    for country in countries:
-        for domain in selected_domains:
-            for segment in selected_segments:
-                combined_key = f"{domain}-{segment}-{country.lower()}"
-                combined_keys.append(combined_key)
-    
-    return combined_keys
+def initialize_session_state():
+    """Initialize session state variables if they don't exist."""
+    if 'domains_select' not in st.session_state:
+        st.session_state.domains_select = ["All"]
+    if 'domains_previous' not in st.session_state:
+        st.session_state.domains_previous = ["All"]
+    if 'segments_select' not in st.session_state:
+        st.session_state.segments_select = ["All"]
+    if 'segments_previous' not in st.session_state:
+        st.session_state.segments_previous = ["All"]
 
-def format_keys_with_commas(keys: List[str]) -> str:
-    """Format the combined keys with commas."""
-    return ',\n'.join(keys)
+[rest of the code remains the same...]
 
 def main():
     st.set_page_config(page_title="Segment Combinations Generator", page_icon="🔄")
     
     st.title("🔄 Segment Combinations Generator")
+    
+    # Initialize session state
+    initialize_session_state()
     
     # Create columns for dropdowns
     col1, col2 = st.columns(2)
