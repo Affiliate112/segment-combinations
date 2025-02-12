@@ -9,6 +9,37 @@ import csv
 EMAIL_DOMAINS = ['freemail', 'company', 'education']
 SEGMENTS = ['micro', 'smb', 'mid-market', 'enterprise']
 
+def handle_multiselect(key: str, options: List[str], default: str = "All") -> List[str]:
+    """Handle multiselect logic with exclusive 'All' option."""
+    # Get the previous selection from session state
+    prev_selection = st.session_state.get(key, [default])
+    
+    # Create the multiselect
+    current_selection = st.multiselect(
+        f"Select {key}:",
+        ["All"] + options,
+        default=prev_selection,
+        help=f"Choose specific {key.lower()} or 'All'"
+    )
+    
+    # Handle the selection logic
+    if "All" in current_selection and "All" not in prev_selection:
+        # User just selected "All" - clear other selections
+        current_selection = ["All"]
+    elif "All" not in current_selection and "All" in prev_selection:
+        # User deselected "All" - keep only the last selection
+        if len(current_selection) == 0:
+            current_selection = ["All"]
+    elif "All" in current_selection and len(current_selection) > 1:
+        # User selected something else while "All" was selected
+        current_selection = [x for x in current_selection if x != "All"]
+    
+    # Store the new selection in session state
+    st.session_state[key] = current_selection
+    
+    # Return the actual values to use (excluding "All")
+    return options if "All" in current_selection else current_selection
+
 def generate_combinations(countries: List[str], selected_domains: List[str], selected_segments: List[str]) -> List[str]:
     """Generate combinations based on selected domains, segments, and countries."""
     combined_keys = []
@@ -33,32 +64,10 @@ def main():
     col1, col2 = st.columns(2)
     
     with col1:
-        # Email Domains multiselect
-        domain_options = ["All"] + EMAIL_DOMAINS
-        selected_domains = st.multiselect(
-            "Select Email Domains:",
-            domain_options,
-            default=["All"],
-            help="Choose specific domains or 'All'"
-        )
-        
-        # Handle "All" selection for domains
-        if "All" in selected_domains:
-            selected_domains = EMAIL_DOMAINS
+        selected_domains = handle_multiselect("Email Domains", EMAIL_DOMAINS)
     
     with col2:
-        # Segments multiselect
-        segment_options = ["All"] + SEGMENTS
-        selected_segments = st.multiselect(
-            "Select Segments:",
-            segment_options,
-            default=["All"],
-            help="Choose specific segments or 'All'"
-        )
-        
-        # Handle "All" selection for segments
-        if "All" in selected_segments:
-            selected_segments = SEGMENTS
+        selected_segments = handle_multiselect("Segments", SEGMENTS)
     
     # Input text area for countries
     countries_input = st.text_area(
@@ -114,6 +123,7 @@ def main():
     st.markdown("""
     ### 📝 Notes:
     - Select "All" or choose specific options for Email Domains and Segments
+    - Selecting "All" will clear other selections, and vice versa
     - All combinations will be in lowercase
     - Each key will be separated by commas
     """)
