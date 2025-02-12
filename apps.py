@@ -5,15 +5,16 @@ import base64
 from io import StringIO
 import csv
 
-def generate_combinations(countries: List[str]) -> List[str]:
-    """Generate all possible combinations of email domains, segments, and countries."""
-    EMAIL_DOMAINS = ['freemail', 'company', 'education']
-    SEGMENTS = ['micro', 'smb', 'mid-market', 'enterprise']
-    
+# Constants
+EMAIL_DOMAINS = ['freemail', 'company', 'education']
+SEGMENTS = ['micro', 'smb', 'mid-market', 'enterprise']
+
+def generate_combinations(countries: List[str], selected_domains: List[str], selected_segments: List[str]) -> List[str]:
+    """Generate combinations based on selected domains, segments, and countries."""
     combined_keys = []
     for country in countries:
-        for domain in EMAIL_DOMAINS:
-            for segment in SEGMENTS:
+        for domain in selected_domains:
+            for segment in selected_segments:
                 combined_key = f"{domain}-{segment}-{country.lower()}"
                 combined_keys.append(combined_key)
     
@@ -28,10 +29,36 @@ def main():
     
     st.title("🔄 Segment Combinations Generator")
     
-    st.write("""
-    Generate combinations of email domains, segments, and countries.
-    Enter your countries below, separated by commas.
-    """)
+    # Create columns for dropdowns
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Email Domains multiselect
+        domain_options = ["All"] + EMAIL_DOMAINS
+        selected_domains = st.multiselect(
+            "Select Email Domains:",
+            domain_options,
+            default=["All"],
+            help="Choose specific domains or 'All'"
+        )
+        
+        # Handle "All" selection for domains
+        if "All" in selected_domains:
+            selected_domains = EMAIL_DOMAINS
+    
+    with col2:
+        # Segments multiselect
+        segment_options = ["All"] + SEGMENTS
+        selected_segments = st.multiselect(
+            "Select Segments:",
+            segment_options,
+            default=["All"],
+            help="Choose specific segments or 'All'"
+        )
+        
+        # Handle "All" selection for segments
+        if "All" in selected_segments:
+            selected_segments = SEGMENTS
     
     # Input text area for countries
     countries_input = st.text_area(
@@ -41,7 +68,7 @@ def main():
     )
     
     if st.button("Generate Combinations"):
-        if countries_input:
+        if countries_input and selected_domains and selected_segments:
             # Handle both comma-separated and newline-separated inputs
             countries = [
                 country.strip() 
@@ -51,7 +78,7 @@ def main():
             
             if countries:
                 # Generate combinations
-                combined_keys = generate_combinations(countries)
+                combined_keys = generate_combinations(countries, selected_domains, selected_segments)
                 
                 # Format keys with commas
                 formatted_keys = format_keys_with_commas(combined_keys)
@@ -62,7 +89,13 @@ def main():
                 
                 # Statistics
                 st.subheader("📈 Statistics")
-                st.metric("Total Combinations", len(combined_keys))
+                stats_col1, stats_col2, stats_col3 = st.columns(3)
+                with stats_col1:
+                    st.metric("Total Combinations", len(combined_keys))
+                with stats_col2:
+                    st.metric("Domains Selected", len(selected_domains))
+                with stats_col3:
+                    st.metric("Segments Selected", len(selected_segments))
                 
                 # Download button
                 st.download_button(
@@ -74,15 +107,13 @@ def main():
             else:
                 st.error("Please enter at least one country")
         else:
-            st.error("Please enter some countries")
+            st.error("Please ensure you've selected domains, segments, and entered countries")
     
     # Add helpful information at the bottom
     st.markdown("---")
     st.markdown("""
     ### 📝 Notes:
-    - Each country will generate combinations with:
-        - Email Domains: freemail, company, education
-        - Segments: micro, smb, mid-market, enterprise
+    - Select "All" or choose specific options for Email Domains and Segments
     - All combinations will be in lowercase
     - Each key will be separated by commas
     """)
