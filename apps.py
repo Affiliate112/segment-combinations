@@ -12,25 +12,38 @@ SEGMENTS = ['micro', 'smb', 'mid-market', 'enterprise']
 def handle_multiselect_change(key: str):
     """Handle the change in multiselect values."""
     current_value = st.session_state[f"{key}_select"]
+    previous_value = st.session_state[f"{key}_previous"]
     
-    # If "All" is selected now
-    if "All" in current_value:
-        # If there are other selections with "All", keep only "All"
-        if len(current_value) > 1:
-            st.session_state[f"{key}_select"] = ["All"]
-    # If "All" is not selected and nothing else is selected, default to "All"
-    elif len(current_value) == 0:
+    # If "All" was just selected
+    if "All" in current_value and "All" not in previous_value:
         st.session_state[f"{key}_select"] = ["All"]
+    # If switching from "All" to specific selections
+    elif "All" not in current_value and "All" in previous_value:
+        # Keep only the new specific selections
+        st.session_state[f"{key}_select"] = [x for x in current_value if x != "All"]
+    # If trying to add "All" to specific selections
+    elif "All" in current_value and len(current_value) > 1:
+        # Keep only "All"
+        st.session_state[f"{key}_select"] = ["All"]
+        
+    # Update previous value
+    st.session_state[f"{key}_previous"] = st.session_state[f"{key}_select"]
 
 def initialize_session_state():
     """Initialize session state variables if they don't exist."""
     if 'domains_select' not in st.session_state:
         st.session_state.domains_select = ["All"]
+    if 'domains_previous' not in st.session_state:
+        st.session_state.domains_previous = ["All"]
     if 'segments_select' not in st.session_state:
         st.session_state.segments_select = ["All"]
+    if 'segments_previous' not in st.session_state:
+        st.session_state.segments_previous = ["All"]
 
 def get_actual_values(selected: List[str], all_options: List[str]) -> List[str]:
     """Convert selection to actual values, handling 'All' case."""
+    if not selected:  # If nothing is selected, return all options
+        return all_options
     return all_options if "All" in selected else selected
 
 def generate_combinations(countries: List[str], selected_domains: List[str], selected_segments: List[str]) -> List[str]:
@@ -60,26 +73,26 @@ def main():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.multiselect(
+        domains = st.multiselect(
             "Select Email Domains:",
             ["All"] + EMAIL_DOMAINS,
             key="domains_select",
             on_change=handle_multiselect_change,
             args=("domains",),
-            help="Choose specific domains or 'All'"
+            help="Choose 'All' or select specific domains"
         )
-        selected_domains = get_actual_values(st.session_state.domains_select, EMAIL_DOMAINS)
+        selected_domains = get_actual_values(domains, EMAIL_DOMAINS)
     
     with col2:
-        st.multiselect(
+        segments = st.multiselect(
             "Select Segments:",
             ["All"] + SEGMENTS,
             key="segments_select",
             on_change=handle_multiselect_change,
             args=("segments",),
-            help="Choose specific segments or 'All'"
+            help="Choose 'All' or select specific segments"
         )
-        selected_segments = get_actual_values(st.session_state.segments_select, SEGMENTS)
+        selected_segments = get_actual_values(segments, SEGMENTS)
     
     # Input text area for countries
     countries_input = st.text_area(
@@ -134,8 +147,9 @@ def main():
     st.markdown("---")
     st.markdown("""
     ### 📝 Notes:
-    - Select "All" or choose specific options for Email Domains and Segments
-    - Selecting "All" will clear other selections, and vice versa
+    - Select "All" to include all options, or choose specific items
+    - You can select any combination of specific options
+    - "All" and specific selections are mutually exclusive
     - All combinations will be in lowercase
     - Each key will be separated by commas
     """)
